@@ -100,7 +100,7 @@ def register():
             number = hex(random.getrandbits(512))[2:]
 
             db.execute(
-                "INSERT INTO activationlink (id, state, username, password, salt, email) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO activationlink (challenge, state, username, password, salt, email) VALUES (?, ?, ?, ?, ?, ?)",
                 (number, utils.U_UNCONFIRMED, username, hashP, salt, email)
             )
             db.commit()
@@ -108,6 +108,8 @@ def register():
             credentials = db.execute(
                 'Select user,password from credentials where name=?', (utils.EMAIL_APP,)
             ).fetchone()
+            
+            #name = email, user = username
 
             content = 'Hello there, to activate your account, please click on this link ' + flask.url_for('auth.activate', _external=True) + '?auth=' + number
             
@@ -250,7 +252,7 @@ def forgot():
         return render_template('auth/login.html')
 
 
-@bp.route('/login', methods=("GET", "POST")))
+@bp.route('/login', methods=("GET", "POST"))
 def login():
     try:
         if g.user:
@@ -276,14 +278,14 @@ def login():
                 'SELECT * FROM user WHERE username = ?', (username,)
             ).fetchone()
             
-            if ?:
+            if user is None:
                 error = 'Incorrect username or password'
             elif not check_password_hash(user['password'], password + user['salt']):
                 error = 'Incorrect username or password'   
 
             if error is None:
                 session.clear()
-                session['user_id'] = user[?]
+                session['user_id'] = user['id']
                 return redirect(url_for('inbox.show'))
 
             flash(error)
@@ -295,13 +297,13 @@ def login():
 
 @bp.before_app_request
 def load_logged_in_user():
-    user_id = session.get(?)
+    user_id = session.get('id')
 
     if user_id is None:
         g.user = None
     else:
         g.user = get_db().execute(
-            QUERY, (user_id,)
+            'SELECT * FROM credentials WHERE id = ?', (user_id,)
         ).fetchone()
 
         
