@@ -12,7 +12,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from db import get_db
+from app.db import get_db
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -118,7 +118,7 @@ def register():
             flash('Please check in your registered email to activate your account')
             return render_template('auth/login.html') 
 
-        return render_template('auth/login.html') 
+        return render_template('auth/register.html') 
     except:
         return render_template('auth/register.html')
 
@@ -297,7 +297,7 @@ def login():
 
 @bp.before_app_request
 def load_logged_in_user():
-    user_id = session.get('id')
+    user_id = session.get('user_id')
 
     if user_id is None:
         g.user = None

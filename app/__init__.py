@@ -1,5 +1,5 @@
 import os
-import dbc
+from . import dbc
 
 from flask import Flask
 

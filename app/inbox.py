@@ -16,9 +16,9 @@ def getDB():
 @login_required
 def show():
     db = get_db()
-    from_id = g.user['id']
+    to_id = g.user['id']
     messages = db.execute(
-        "select * from message where from_id = ?", (from_id)
+        "select * from message where to_id = ?", (to_id)
     ).fetchall()
 
     return render_template("inbox/show.html", messages=messages)
@@ -27,7 +27,7 @@ def show():
 @login_required
 def send():
     if request.method == 'POST':        
-        from_id = g.user['id']
+        #from_id = g.user['id']
         to_username = request.form['to']
         subject = request.form['subject']
         body = request.form['body']
@@ -50,7 +50,7 @@ def send():
         userto = None 
         
         userto = db.execute(
-            "select id from user where email = ?", (to_username,)
+            "select id from user where username = ?", (to_username,)
         ).fetchone()
         
         if userto is None:
