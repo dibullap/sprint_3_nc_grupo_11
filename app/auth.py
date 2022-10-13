@@ -28,9 +28,9 @@ def activate():
             
             db = get_db()
             attempt = db.execute(
-                "SELECT * FROM activationlink WHERE id = ? AND state = ?", (number, utils.U_UNCONFIRMED)
+                "SELECT * FROM activationlink WHERE challenge = ? AND state = ?", (number, utils.U_UNCONFIRMED)
             ).fetchone()
-
+            
             if attempt is not None:
                 db.execute(
                     "UPDATE activationlink SET state = ? WHERE id = ?", (utils.U_CONFIRMED, attempt['id'])
@@ -74,8 +74,9 @@ def register():
                 error = 'Password is required.'
                 flash(error)
                 return render_template('auth/register.html')
+            
 
-            if db.execute("SELECT * FROM user WHERE username = ?", (username)).fetchone() is not None:
+            if db.execute("SELECT * FROM user WHERE username = ?", (username,)).fetchone() is not None:
                 error = 'User {} is already registered.'.format(username)
                 flash(error)
                 return render_template("auth/register.html")
@@ -89,7 +90,7 @@ def register():
                 error =  'Email {} is already registered.'.format(email)
                 flash(error)
                 return render_template('auth/register.html')
-            
+            print('nwn email')
             if (not utils.isPasswordValid(password)):
                 error = 'Password should contain at least a lowercase letter, an uppercase letter and a number with 8 characters long'
                 flash(error)
@@ -98,23 +99,26 @@ def register():
             salt = hex(random.getrandbits(128))[2:]
             hashP = generate_password_hash(password + salt)
             number = hex(random.getrandbits(512))[2:]
-
+            
+            
+            
             db.execute(
                 "INSERT INTO activationlink (challenge, state, username, password, salt, email) VALUES (?, ?, ?, ?, ?, ?)",
                 (number, utils.U_UNCONFIRMED, username, hashP, salt, email)
             )
             db.commit()
-
+            
             credentials = db.execute(
                 'Select user,password from credentials where name=?', (utils.EMAIL_APP,)
             ).fetchone()
-            
+            print('Holis')
             #name = email, user = username
-
+            print(credentials)
             content = 'Hello there, to activate your account, please click on this link ' + flask.url_for('auth.activate', _external=True) + '?auth=' + number
             
-            EmailMessage.send_email(credentials, receiver=email, subject='Activate your account', message=content)
-            
+            send_email(credentials, receiver=email, subject='Activate your account', message=content)
+            print("Email enviado")
+
             flash('Please check in your registered email to activate your account')
             return render_template('auth/login.html') 
 
@@ -157,12 +161,12 @@ def confirm():
 
             db = get_db()
             attempt = db.execute(
-                'SELECT * FROM forgotlink WHERE userid = ? AND state = ?', (authid, utils.F_ACTIVE)
+                'SELECT * FROM forgotlink WHERE challenge = ? AND state = ?', (authid, utils.F_ACTIVE)
             ).fetchone()
             
             if attempt is not None:
                 db.execute(
-                    "UPDATE forgotlink SET state = ? WHERE userid = ?", (utils.F_INACTIVE, attempt['id'])
+                    "UPDATE forgotlink SET state = ? WHERE userid = ?", (utils.F_INACTIVE, attempt['userid'])
                 )
                 salt = hex(random.getrandbits(128))[2:]
                 hashP = generate_password_hash(password + salt)   
@@ -188,12 +192,12 @@ def change():
         
         if request.method == "GET": 
             number = request.args['auth'] 
-            
+            print("numero", number)
             db = get_db()
             attempt = db.execute(
-                "SELECT * FROM forgotlink WWERE userid = ? AND state = ?", (number, utils.F_ACTIVE)
+                "SELECT * FROM forgotlink WHERE challenge = ? AND state = ?", (number, utils.F_ACTIVE)
             ).fetchone()
-            
+            print("coge el usuario")
             if attempt is not None:
                 return render_template('auth/change.html', number=number)
         
@@ -220,7 +224,7 @@ def forgot():
             user = db.execute(
                 "SELECT * FROM user WHERE email = ?", (email,)
             ).fetchone()
-
+            
             if user is not None:
                 number = hex(random.getrandbits(512))[2:]
                 
@@ -228,19 +232,20 @@ def forgot():
                     "UPDATE forgotlink SET state = ? WHERE userid = ?",
                     (utils.F_INACTIVE, user['id'])
                 )
+                
                 db.execute(
-                    "INSERT INTO forgotlink userid, challenge, state VALUES (?, ?, ?)",
+                    "INSERT INTO forgotlink (userid, challenge, state) VALUES (?, ?, ?)",
                     (user['id'], number, utils.F_ACTIVE)
                 )
                 db.commit()
-                
+                print("crea datos de recuperacion")
                 credentials = db.execute(
                     'Select user,password from credentials where name=?',(utils.EMAIL_APP,)
                 ).fetchone()
                 
                 content = 'Hello there, to change your password, please click on this link ' + flask.url_for('auth.change', _external=True) + '?auth=' + number
                 
-                EmailMessage.send_email(credentials, receiver=email, subject='New Password', message=content)
+                send_email(credentials, receiver=email, subject='New Password', message=content)
                 
                 flash('Please check in your registered email')
             else:
@@ -303,13 +308,13 @@ def load_logged_in_user():
         g.user = None
     else:
         g.user = get_db().execute(
-            'SELECT * FROM credentials WHERE id = ?', (user_id,)
+            'SELECT * FROM user WHERE id = ?', (user_id,)
         ).fetchone()
 
         
 @bp.route('/logout')
 def logout():
-    session.close()
+    session.clear()
     return redirect(url_for('auth.login'))
 
 
